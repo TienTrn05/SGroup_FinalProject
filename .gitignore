@@ -1,0 +1,15 @@
+node_modules/
+.env
+local.backup
+
+# Local files generated during this session
+/.agents/skills/neon-postgres/
+/.codex/config.toml
+/skills-lock.json
+/docs/apidog/sgroup.apidog.postman_collection.json
+
+NEXT_STEPS.md
+
+PROJECT_PLAN.md
+
+README.md
