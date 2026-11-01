@@ -1,0 +1,26 @@
+PORT=3000
+NODE_ENV=development
+
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=postgres
+DB_PASSWORD=12345678
+DB_NAME=s_group_learning
+
+# JWT Configuration
+JWT_SECRET=super_secret_jwt_key_sgroup_training_2026!@#$%^
+JWT_EXPIRES_IN=900
+JWT_REFRESH_SECRET=GUZD/Dc1ylKlIFPBIPZXBcSE9cIopp6H4n0D4uao8BVChqCgvOqqCYpKDPSiLfl6
+JWT_REFRESH_EXPIRES_IN=604800
+#Cloundflare R2 Configuration
+
+R2_ACCOUNT_ID=cd9e62d2ec70791bbabd17bb1d4322fa
+R2_ACCESS_KEY_ID=f2c1a3e1aef8ecdde46d60669cc9b87a
+R2_SECRET_ACCESS_KEY=d8dc7b6e3f2c4b1acd477356640ba972afcfe258eea4a122e9fbc77561378d20
+R2_BUCKET_NAME=sgroup
+
+R2_PUBLIC_URL=https://pub-4be4739eee554abda1bd2d03666888d6.r2.dev
+
+
+
+DATABASE_URL=postgresql://neondb_owner:npg_mVgA1eYL0vxl@ep-floral-field-b387adc4-pooler.c-4.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require
