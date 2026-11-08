@@ -1,6 +1,6 @@
 import { Router } from "express";
-import * as lessonsController from "../controller/lessons.controller.js";
-import * as progressController from "../controller/lessonProgress.controller.js";
+import lessonsController from "../controller/lessons.controller.js";
+import progressController from "../controller/lessonProgress.controller.js";
 import { requireAuth } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import { classIdRules } from "../middleware/classes.validate.js";

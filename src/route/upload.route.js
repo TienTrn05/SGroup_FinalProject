@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as uploadController from "../controller/upload.controller.js";
+import uploadController from "../controller/upload.controller.js";
 import {
   uploadSingleImage,
   uploadMultipleImages,

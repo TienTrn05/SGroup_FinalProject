@@ -1,36 +1,24 @@
-import pool from "../config/db.config.js";
+﻿import { UserImage } from "../entities/userImage.entity.js";
+import { BaseRepository } from "./base.repository.js";
 
-const publicColumns = "id, user_id, image_url, created_at";
+export class UserImagesRepository extends BaseRepository {
+  constructor(database) {
+    super(UserImage, database);
+  }
 
-export const createMany = async (userId, imageUrls) => {
-  const result = await pool.query(
-    `INSERT INTO public.user_images (user_id, image_url)
-     SELECT $1, image_url
-     FROM unnest($2::text[]) AS urls(image_url)
-     RETURNING ${publicColumns}`,
-    [userId, imageUrls],
-  );
-  return result.rows;
-};
-export const findByIdAndUserId = async (imageId, userId) => {
-  const result = await pool.query(
-    `SELECT ${publicColumns}
-     FROM public.user_images
-     WHERE id = $1 AND user_id = $2
-     LIMIT 1`,
-    [imageId, userId],
-  );
+  createMany(userId, imageUrls) {
+    return this.insertRows(
+      imageUrls.map((image_url) => ({ user_id: userId, image_url })),
+    );
+  }
 
-  return result.rows[0] || null;
-};
+  findByIdAndUserId(imageId, userId) {
+    return this.repository.findOneBy({ id: imageId, user_id: userId });
+  }
 
-export const removeByIdAndUserId = async (imageId, userId) => {
-  const result = await pool.query(
-    `DELETE FROM public.user_images
-     WHERE id = $1 AND user_id = $2
-     RETURNING ${publicColumns}`,
-    [imageId, userId],
-  );
+  removeByIdAndUserId(imageId, userId) {
+    return this.deleteRow({ id: imageId, user_id: userId });
+  }
+}
 
-  return result.rows[0] || null;
-};
+export default new UserImagesRepository();

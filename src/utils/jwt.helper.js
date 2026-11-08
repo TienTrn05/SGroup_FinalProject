@@ -45,7 +45,7 @@ export const checkTokenConfig = () => {
 const signature = (input, secret) =>
   createHmac("sha256", secret).update(input).digest();
 
-export const signToken = (userId, type) => {
+export const signToken = (userId, type, sessionId = randomUUID()) => {
   if (type !== "access" && type !== "refresh") {
     throw new Error("Invalid token type");
   }
@@ -63,6 +63,7 @@ export const signToken = (userId, type) => {
   const payload = Buffer.from(
     JSON.stringify({
       sub: String(userId),
+      sid: sessionId,
       type,
       iat: now,
       exp: now + lifetime,
@@ -75,7 +76,7 @@ export const signToken = (userId, type) => {
   return `${input}.${signature(input, secretFor(type)).toString("base64url")}`;
 };
 
-export const verifyToken = (token, type) => {
+export const verifyTokenPayload = (token, type) => {
   if ((type !== "access" && type !== "refresh") || typeof token !== "string") {
     throw new UnauthorizedError("Invalid or expired token");
   }
@@ -117,6 +118,8 @@ export const verifyToken = (token, type) => {
       payload.type !== type ||
       !/^[1-9]\d*$/.test(payload.sub) ||
       !Number.isSafeInteger(Number(payload.sub)) ||
+      typeof payload.sid !== "string" ||
+      !/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(payload.sid) ||
       !Number.isInteger(payload.iat) ||
       payload.iat > now ||
       !Number.isInteger(payload.exp) ||
@@ -126,8 +129,12 @@ export const verifyToken = (token, type) => {
       throw new Error("Invalid claims");
     }
 
-    return Number(payload.sub);
+    return payload;
   } catch {
     throw new UnauthorizedError("Invalid or expired token");
   }
 };
+
+// Preserve the user ID interface for callers that only need token verification.
+export const verifyToken = (token, type) =>
+  Number(verifyTokenPayload(token, type).sub);
