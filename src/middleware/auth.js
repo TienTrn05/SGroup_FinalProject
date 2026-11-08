@@ -1,6 +1,5 @@
 import { UnauthorizedError, ForbiddenError } from "../core/error.response.js";
-import { verifyToken } from "../utils/jwt.helper.js";
-import * as usersRepository from "../repository/users.repository.js";
+import authService from "../service/auth.service.js";
 
 export const requireAuth = async (req, res, next) => {
   const match = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? "");
@@ -10,12 +9,7 @@ export const requireAuth = async (req, res, next) => {
   }
 
   try {
-    const userId = verifyToken(match[1], "access");
-    const user = await usersRepository.findById(userId);
-
-    if (!user) {
-      return next(new UnauthorizedError("Account no longer exists"));
-    }
+    const user = await authService.authenticateAccessToken(match[1]);
 
     req.userId = user.id;
     req.user = user;

@@ -1,28 +1,38 @@
 import catchAsync from "../utils/catchAsync.js";
 import { sendSuccess } from "../utils/responseHelper.js";
-import * as userImagesService from "../service/userImages.service.js";
+import defaultUserImagesService from "../service/userImages.service.js";
 
-export const uploadSingleImage = catchAsync(async (req, res) => {
-  const [result] = await userImagesService.uploadAndSave(req.params.id, [
-    req.file,
-  ]);
+export class UploadController {
+  constructor(service = defaultUserImagesService) {
+    this.service = service;
+    this.uploadSingleImage = catchAsync(this.uploadSingleImage.bind(this));
+    this.uploadMultipleFiles = catchAsync(this.uploadMultipleFiles.bind(this));
+    this.deleteFile = catchAsync(this.deleteFile.bind(this));
+  }
 
-  return sendSuccess(res, 201, "Upload và lưu ảnh thành công", result);
-});
+  async uploadSingleImage(req, res) {
+    const [result] = await this.service.uploadAndSave(req.params.id, [req.file]);
 
-export const uploadMultipleFiles = catchAsync(async (req, res) => {
-  const results = await userImagesService.uploadAndSave(
-    req.params.id,
-    req.files,
-  );
+    return sendSuccess(res, 201, "Upload và lưu ảnh thành công", result);
+  }
 
-  return sendSuccess(res, 201, "Upload và lưu các ảnh thành công", results);
-});
-export const deleteFile = catchAsync(async (req, res) => {
-  const deletedFile = await userImagesService.deleteFile(
-    req.params.id,
-    req.params.imageId,
-  );
+  async uploadMultipleFiles(req, res) {
+    const results = await this.service.uploadAndSave(
+      req.params.id,
+      req.files,
+    );
 
-  return sendSuccess(res, 200, "Xóa file thành công", deletedFile);
-});
+    return sendSuccess(res, 201, "Upload và lưu các ảnh thành công", results);
+  }
+
+  async deleteFile(req, res) {
+    const deletedFile = await this.service.deleteFile(
+      req.params.id,
+      req.params.imageId,
+    );
+
+    return sendSuccess(res, 200, "Xóa file thành công", deletedFile);
+  }
+}
+
+export default new UploadController();

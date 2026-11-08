@@ -1,34 +1,41 @@
-import pool from "../config/db.config.js";
+﻿import { ClassMember } from "../entities/classMember.entity.js";
+import { BaseRepository } from "./base.repository.js";
 
-export const findByClassId = async (classId) => {
-  const result = await pool.query(
-    `SELECT cm.id, cm.class_id, cm.member_id, cm.joined_at,
-       u.name, u.email, u.role
-     FROM public.class_members cm
-     JOIN public.users u ON u.id = cm.member_id
-     WHERE cm.class_id = $1
-     ORDER BY cm.id`,
-    [classId],
-  );
-  return result.rows;
-};
+export class ClassMembersRepository extends BaseRepository {
+  constructor(database) {
+    super(ClassMember, database);
+  }
 
-export const create = async (classId, memberId) => {
-  const result = await pool.query(
-    `INSERT INTO public.class_members (class_id, member_id)
-     VALUES ($1, $2)
-     RETURNING id, class_id, member_id, joined_at`,
-    [classId, memberId],
-  );
-  return result.rows[0];
-};
+  async findByClassId(classId) {
+    const memberships = await this.repository.find({
+      where: { class_id: classId },
+      relations: { member: true },
+      select: {
+        id: true,
+        class_id: true,
+        member_id: true,
+        joined_at: true,
+        member: { id: true, name: true, email: true, role: true },
+      },
+      order: { id: "ASC" },
+    });
+    return memberships.map(({ member, ...membership }) => ({
+      ...membership,
+      name: member.name,
+      email: member.email,
+      role: member.role,
+    }));
+  }
 
-export const remove = async (classId, memberId) => {
-  const result = await pool.query(
-    `DELETE FROM public.class_members
-     WHERE class_id = $1 AND member_id = $2
-     RETURNING id, class_id, member_id, joined_at`,
-    [classId, memberId],
-  );
-  return result.rows[0] || null;
-};
+  async create(classId, memberId) {
+    return (
+      await this.insertRows({ class_id: classId, member_id: memberId })
+    )[0];
+  }
+
+  remove(classId, memberId) {
+    return this.deleteRow({ class_id: classId, member_id: memberId });
+  }
+}
+
+export default new ClassMembersRepository();

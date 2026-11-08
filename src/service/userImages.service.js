@@ -1,49 +1,71 @@
 import { BadGatewayError, NotFoundError } from "../core/error.response.js";
-import * as userImagesRepository from "../repository/userImages.repository.js";
-import * as usersRepository from "../repository/users.repository.js";
-import * as uploadService from "./upload.service.js";
+import defaultUserImagesRepository from "../repository/userImages.repository.js";
+import defaultUsersRepository from "../repository/users.repository.js";
+import defaultUploadService from "./upload.service.js";
 
-const removeUploadedFiles = (files) =>
-  Promise.all(files.map((file) => uploadService.deleteUploadedFile(file.key)));
+export class UserImagesService {
+  constructor({
+    userImagesRepository = defaultUserImagesRepository,
+    usersRepository = defaultUsersRepository,
+    uploadService = defaultUploadService,
+  } = {}) {
+    this.userImagesRepository = userImagesRepository;
+    this.usersRepository = usersRepository;
+    this.uploadService = uploadService;
+  }
 
-export const uploadAndSave = async (userId, files) => {
-  const user = await usersRepository.findById(userId);
-  if (!user) throw new NotFoundError("User not found");
+  #removeUploadedFiles(files) {
+    return Promise.all(
+      files.map((file) => this.uploadService.deleteUploadedFile(file.key)),
+    );
+  }
 
-  const uploadedFiles = await uploadService.formatUploadedFiles(files);
+  async uploadAndSave(userId, files) {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) throw new NotFoundError("User not found");
 
-  try {
-    const savedImages = await userImagesRepository.createMany(
+    const uploadedFiles = await this.uploadService.formatUploadedFiles(files);
+
+    try {
+      const savedImages = await this.userImagesRepository.createMany(
+        userId,
+        uploadedFiles.map((file) => file.url),
+      );
+
+      return uploadedFiles.map((file, index) => ({
+        ...file,
+        id: savedImages[index].id,
+        userId: savedImages[index].user_id,
+        createdAt: savedImages[index].created_at,
+      }));
+    } catch (error) {
+      await this.#removeUploadedFiles(uploadedFiles);
+      throw error;
+    }
+  }
+
+  async deleteFile(userId, imageId) {
+    const image = await this.userImagesRepository.findByIdAndUserId(
+      imageId,
       userId,
-      uploadedFiles.map((file) => file.url),
+    );
+    if (!image) throw new NotFoundError("Image not found for this user");
+
+    const deletedFromR2 = await this.uploadService.deleteUploadedFile(
+      image.image_url,
+    );
+    if (!deletedFromR2) {
+      throw new BadGatewayError("Could not delete image from R2");
+    }
+
+    const deletedImage = await this.userImagesRepository.removeByIdAndUserId(
+      imageId,
+      userId,
     );
 
-    return uploadedFiles.map((file, index) => ({
-      ...file,
-      id: savedImages[index].id,
-      userId: savedImages[index].user_id,
-      createdAt: savedImages[index].created_at,
-    }));
-  } catch (error) {
-    await removeUploadedFiles(uploadedFiles);
-    throw error;
+    if (!deletedImage) throw new NotFoundError("Image not found for this user");
+    return deletedImage;
   }
-};
+}
 
-export const deleteFile = async (userId, imageId) => {
-  const image = await userImagesRepository.findByIdAndUserId(imageId, userId);
-  if (!image) throw new NotFoundError("Image not found for this user");
-
-  const deletedFromR2 = await uploadService.deleteUploadedFile(image.image_url);
-  if (!deletedFromR2) {
-    throw new BadGatewayError("Could not delete image from R2");
-  }
-
-  const deletedImage = await userImagesRepository.removeByIdAndUserId(
-    imageId,
-    userId,
-  );
-
-  if (!deletedImage) throw new NotFoundError("Image not found for this user");
-  return deletedImage;
-};
+export default new UserImagesService();

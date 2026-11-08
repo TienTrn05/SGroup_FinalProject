@@ -1,35 +1,49 @@
-import * as lessonsRepository from "../repository/lessons.repository.js";
-import * as progressRepository from "../repository/lessonProgress.repository.js";
-import { requireUser, requireEnrolledMember } from "./classAccess.service.js";
+import defaultLessonsRepository from "../repository/lessons.repository.js";
+import defaultProgressRepository from "../repository/lessonProgress.repository.js";
+import defaultClassAccessService from "./classAccess.service.js";
 import { NotFoundError } from "../core/error.response.js";
 
-export const completeLesson = async (lessonId, user) => {
-  requireUser(user);
-  const lesson = await lessonsRepository.findById(lessonId);
-  if (!lesson) throw new NotFoundError("Lesson not found");
-  await requireEnrolledMember(lesson.class_id, user);
-  try {
-    return await progressRepository.complete(lessonId, user.id);
-  } catch (error) {
-    if (error.code === "23503" && error.constraint === "fk_progress_lesson") {
-      throw new NotFoundError("Lesson not found");
-    }
-    if (error.code === "23503" && error.constraint === "fk_progress_member") {
-      throw new NotFoundError("Member account not found");
-    }
-    throw error;
+export class LessonProgressService {
+  constructor({
+    lessonsRepository = defaultLessonsRepository,
+    progressRepository = defaultProgressRepository,
+    classAccessService = defaultClassAccessService,
+  } = {}) {
+    this.lessonsRepository = lessonsRepository;
+    this.progressRepository = progressRepository;
+    this.classAccessService = classAccessService;
   }
-};
 
-export const getClassProgress = async (classId, user) => {
-  await requireEnrolledMember(classId, user);
-  const { total, completed } = await progressRepository.getClassProgress(
-    classId,
-    user.id,
-  );
-  return {
-    totalLessons: total,
-    completedLessons: completed,
-    progress: total === 0 ? 0 : Math.round((completed / total) * 10000) / 100,
-  };
-};
+  async completeLesson(lessonId, user) {
+    this.classAccessService.requireUser(user);
+    const lesson = await this.lessonsRepository.findById(lessonId);
+    if (!lesson) throw new NotFoundError("Lesson not found");
+    await this.classAccessService.requireEnrolledMember(lesson.class_id, user);
+    try {
+      return await this.progressRepository.complete(lessonId, user.id);
+    } catch (error) {
+      if (error.code === "23503" && error.constraint === "fk_progress_lesson") {
+        throw new NotFoundError("Lesson not found");
+      }
+      if (error.code === "23503" && error.constraint === "fk_progress_member") {
+        throw new NotFoundError("Member account not found");
+      }
+      throw error;
+    }
+  }
+
+  async getClassProgress(classId, user) {
+    await this.classAccessService.requireEnrolledMember(classId, user);
+    const { total, completed } = await this.progressRepository.getClassProgress(
+      classId,
+      user.id,
+    );
+    return {
+      totalLessons: total,
+      completedLessons: completed,
+      progress: total === 0 ? 0 : Math.round((completed / total) * 10000) / 100,
+    };
+  }
+}
+
+export default new LessonProgressService();

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import * as classesController from "../controller/classes.controller.js";
+import classesController from "../controller/classes.controller.js";
 import { requireAuth, requireRole } from "../middleware/auth.js";
 import { validate } from "../middleware/validate.js";
 import {

@@ -51,7 +51,7 @@ export const loginRules = [
   passwordRule(),
 ];
 
-export const refreshRules = [
+const refreshTokenRules = () => [
   onlyFields(["refreshToken"]),
   body("refreshToken")
     .isString()
@@ -60,3 +60,6 @@ export const refreshRules = [
     .notEmpty()
     .withMessage("Refresh token is required"),
 ];
+
+export const refreshRules = refreshTokenRules();
+export const logoutRules = refreshTokenRules();

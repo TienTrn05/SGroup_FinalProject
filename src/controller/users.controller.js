@@ -1,37 +1,51 @@
-import * as usersService from "../service/users.service.js";
+import defaultUsersService from "../service/users.service.js";
 import catchAsync from "../utils/catchAsync.js";
 import { sendSuccess } from "../utils/responseHelper.js";
 import { NotFoundError } from "../core/error.response.js";
 
-export const getAllUsers = catchAsync(async (req, res) => {
-  const users = await usersService.getAllUsers();
-  return sendSuccess(res, 200, "Users retrieved successfully", users);
-});
+export class UsersController {
+  constructor(service = defaultUsersService) {
+    this.service = service;
+    this.getAllUsers = catchAsync(this.getAllUsers.bind(this));
+    this.getUserById = catchAsync(this.getUserById.bind(this));
+    this.createUser = catchAsync(this.createUser.bind(this));
+    this.updateUser = catchAsync(this.updateUser.bind(this));
+    this.deleteUser = catchAsync(this.deleteUser.bind(this));
+  }
 
-export const getUserById = catchAsync(async (req, res) => {
-  const user = await usersService.getUserById(req.params.id);
+  async getAllUsers(req, res) {
+    const users = await this.service.getAllUsers();
+    return sendSuccess(res, 200, "Users retrieved successfully", users);
+  }
 
-  if (!user) throw new NotFoundError("User not found");
+  async getUserById(req, res) {
+    const user = await this.service.getUserById(req.params.id);
 
-  return sendSuccess(res, 200, "User retrieved successfully", user);
-});
+    if (!user) throw new NotFoundError("User not found");
 
-export const createUser = catchAsync(async (req, res) => {
-  const newUser = await usersService.createUser(req.body);
-  return sendSuccess(res, 201, "User created successfully", newUser);
-});
-export const updateUser = catchAsync(async (req, res) => {
-  const updatedUser = await usersService.updateUser(req.params.id, req.body);
+    return sendSuccess(res, 200, "User retrieved successfully", user);
+  }
 
-  if (!updatedUser) throw new NotFoundError("User not found");
+  async createUser(req, res) {
+    const newUser = await this.service.createUser(req.body);
+    return sendSuccess(res, 201, "User created successfully", newUser);
+  }
 
-  return sendSuccess(res, 200, "User updated successfully", updatedUser);
-});
+  async updateUser(req, res) {
+    const updatedUser = await this.service.updateUser(req.params.id, req.body);
 
-export const deleteUser = catchAsync(async (req, res) => {
-  const deletedUser = await usersService.deleteUser(req.params.id);
+    if (!updatedUser) throw new NotFoundError("User not found");
 
-  if (!deletedUser) throw new NotFoundError("User not found");
+    return sendSuccess(res, 200, "User updated successfully", updatedUser);
+  }
 
-  return sendSuccess(res, 200, "User deleted successfully", deletedUser);
-});
+  async deleteUser(req, res) {
+    const deletedUser = await this.service.deleteUser(req.params.id);
+
+    if (!deletedUser) throw new NotFoundError("User not found");
+
+    return sendSuccess(res, 200, "User deleted successfully", deletedUser);
+  }
+}
+
+export default new UsersController();

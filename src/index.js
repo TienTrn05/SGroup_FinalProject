@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { config } from "./config/env.config.js";
-import { connectDB } from "./config/db.config.js";
+import { connectDB } from "./config/data-source.js";
 import { checkTokenConfig } from "./utils/jwt.helper.js";
 
 const startServer = async () => {
@@ -15,4 +15,7 @@ const startServer = async () => {
   });
 };
 
-startServer();
+startServer().catch((error) => {
+  console.error("Failed to start server:", error.message);
+  process.exitCode = 1;
+});

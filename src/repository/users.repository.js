@@ -1,108 +1,61 @@
-import pool from "../config/db.config.js";
+﻿import { ILike, Not } from "typeorm";
+import { User } from "../entities/user.entity.js";
+import { BaseRepository } from "./base.repository.js";
 
-const publicColumns = "id, name, email, role, created_at, updated_at";
+// Escape LIKE metacharacters so email lookup remains an exact match.
+const exactEmail = (email) => ILike(email.replace(/[\\%_]/g, "\\$&"));
 
-export const findAll = async () => {
-  const result = await pool.query(
-    `SELECT ${publicColumns}
-     FROM public.users
-     ORDER BY id`,
-  );
-
-  return result.rows;
-};
-
-export const findByEmail = async (email) => {
-  const result = await pool.query(
-    `SELECT ${publicColumns}, password_hash
-     FROM public.users
-     WHERE LOWER(email) = LOWER($1)
-     LIMIT 1`,
-    [email],
-  );
-
-  return result.rows[0] || null;
-};
-
-export const findById = async (id) => {
-  const result = await pool.query(
-    `SELECT ${publicColumns}
-     FROM public.users
-     WHERE id = $1`,
-    [id],
-  );
-
-  return result.rows[0] || null;
-};
-
-export const emailExists = async (email, excludedId = null) => {
-  const result = await pool.query(
-    `SELECT 1
-     FROM public.users
-     WHERE LOWER(email) = LOWER($1)
-       AND ($2::integer IS NULL OR id <> $2)
-     LIMIT 1`,
-    [email, excludedId],
-  );
-
-  return result.rows.length > 0;
-};
-
-export const create = async ({
-  name,
-  email,
-  password_hash,
-  role = "MEMBER",
-}) => {
-  const result = await pool.query(
-    `INSERT INTO public.users (
-       name,
-       email,
-       password_hash,
-       role
-     )
-     VALUES ($1, $2, $3, $4)
-     RETURNING ${publicColumns}`,
-    [name, email, password_hash, role],
-  );
-
-  return result.rows[0];
-};
-
-export const update = async (id, changes) => {
-  const allowedFields = ["name", "email", "password_hash", "role"];
-
-  const fields = allowedFields.filter((field) => changes[field] !== undefined);
-
-  if (fields.length === 0) {
-    return findById(id);
+export class UsersRepository extends BaseRepository {
+  constructor(database) {
+    super(User, database);
   }
 
-  const assignments = fields.map((field, index) => `${field} = $${index + 1}`);
+  findAll() {
+    return this.repository.find({ order: { id: "ASC" } });
+  }
 
-  assignments.push("updated_at = CURRENT_TIMESTAMP");
+  findByEmail(email) {
+    return this.repository.findOne({
+      where: { email: exactEmail(email) },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        role: true,
+        created_at: true,
+        updated_at: true,
+        password_hash: true,
+      },
+    });
+  }
 
-  const values = fields.map((field) => changes[field]);
-  values.push(id);
+  findById(id) {
+    return this.repository.findOneBy({ id });
+  }
 
-  const result = await pool.query(
-    `UPDATE public.users
-     SET ${assignments.join(", ")}
-     WHERE id = $${values.length}
-     RETURNING ${publicColumns}`,
-    values,
-  );
+  emailExists(email, excludedId = null) {
+    return this.repository.existsBy({
+      email: exactEmail(email),
+      ...(excludedId === null ? {} : { id: Not(excludedId) }),
+    });
+  }
 
-  return result.rows[0] || null;
-};
+  async create({ name, email, password_hash, role = "MEMBER" }) {
+    return (await this.insertRows({ name, email, password_hash, role }))[0];
+  }
 
-export const remove = async (id) => {
-  const result = await pool.query(
-    `DELETE FROM public.users
-     WHERE id = $1
-     RETURNING ${publicColumns}`,
-    [id],
-  );
+  update(id, changes) {
+    return this.updateRow(id, changes, [
+      "name",
+      "email",
+      "password_hash",
+      "role",
+    ]);
+  }
 
-  return result.rows[0] || null;
-};
+  remove(id) {
+    return this.deleteRow({ id });
+  }
+}
+
+export default new UsersRepository();

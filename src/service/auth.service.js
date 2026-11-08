@@ -1,32 +1,79 @@
-import * as usersRepository from "../repository/users.repository.js";
-import { createUser } from "./users.service.js";
+import defaultUsersRepository from "../repository/users.repository.js";
+import defaultAuthSessionsRepository from "../repository/authSessions.repository.js";
+import defaultUsersService from "./users.service.js";
+import { randomUUID } from "node:crypto";
 import { verifyPassword } from "../utils/passwordhelper.js";
-import { signToken, verifyToken } from "../utils/jwt.helper.js";
+import { signToken, verifyTokenPayload } from "../utils/jwt.helper.js";
 import { UnauthorizedError } from "../core/error.response.js";
 
-export const register = (data) => createUser(data);
-
-export const login = async ({ email, password }) => {
-  const user = await usersRepository.findByEmail(email);
-  if (!user || !(await verifyPassword(password, user.password_hash))) {
-    throw new UnauthorizedError("Invalid email or password");
+export class AuthService {
+  constructor({
+    usersRepository = defaultUsersRepository,
+    usersService = defaultUsersService,
+    authSessionsRepository = defaultAuthSessionsRepository,
+  } = {}) {
+    this.usersRepository = usersRepository;
+    this.usersService = usersService;
+    this.authSessionsRepository = authSessionsRepository;
   }
-  const { password_hash, ...publicUser } = user;
-  return {
-    user: publicUser,
-    accessToken: signToken(user.id, "access"),
-    refreshToken: signToken(user.id, "refresh"),
-  };
-};
 
-export const getMe = async (userId) => {
-  const user = await usersRepository.findById(userId);
-  if (!user) throw new UnauthorizedError("Account no longer exists");
-  return user;
-};
+  register(data) {
+    return this.usersService.createUser(data);
+  }
 
-export const refresh = async (refreshToken) => {
-  const userId = verifyToken(refreshToken, "refresh");
-  await getMe(userId);
-  return { accessToken: signToken(userId, "access") };
-};
+  async login({ email, password }) {
+    const user = await this.usersRepository.findByEmail(email);
+    if (!user || !(await verifyPassword(password, user.password_hash))) {
+      throw new UnauthorizedError("Invalid email or password");
+    }
+    const { password_hash, ...publicUser } = user;
+    const sessionId = randomUUID();
+    const accessToken = signToken(user.id, "access", sessionId);
+    const refreshToken = signToken(user.id, "refresh", sessionId);
+    const { exp } = verifyTokenPayload(refreshToken, "refresh");
+    await this.authSessionsRepository.create({
+      id: sessionId,
+      userId: user.id,
+      expiresAt: new Date(exp * 1000),
+    });
+    return {
+      user: publicUser,
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  async getMe(userId) {
+    const user = await this.usersRepository.findById(userId);
+    if (!user) throw new UnauthorizedError("Account no longer exists");
+    return user;
+  }
+
+  async refresh(refreshToken) {
+    const { sub, sid } = verifyTokenPayload(refreshToken, "refresh");
+    const userId = Number(sub);
+    await this.#requireActiveSession(sid, userId);
+    await this.getMe(userId);
+    return { accessToken: signToken(userId, "access", sid) };
+  }
+
+  async authenticateAccessToken(accessToken) {
+    const { sub, sid } = verifyTokenPayload(accessToken, "access");
+    const userId = Number(sub);
+    await this.#requireActiveSession(sid, userId);
+    return this.getMe(userId);
+  }
+
+  async logout(refreshToken) {
+    // The refresh token authenticates logout even when the access token expired.
+    const { sub, sid } = verifyTokenPayload(refreshToken, "refresh");
+    await this.authSessionsRepository.revoke(sid, Number(sub));
+  }
+
+  async #requireActiveSession(sessionId, userId) {
+    const session = await this.authSessionsRepository.findActive(sessionId, userId);
+    if (!session) throw new UnauthorizedError("Session expired or logged out");
+  }
+}
+
+export default new AuthService();
