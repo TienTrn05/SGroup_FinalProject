@@ -5,3 +5,5 @@ export { LessonFactory } from "./lesson.factory.js";
 export { LessonProgressFactory } from "./lessonProgress.factory.js";
 export { UserImageFactory } from "./userImage.factory.js";
 export { AuthSessionFactory } from "./authSession.factory.js";
+export { AssignmentFactory } from "./assignment.factory.js";
+export { SubmissionFactory } from "./submission.factory.js";

@@ -8,6 +8,8 @@ import { Lesson } from "../entities/lesson.entity.js";
 import { LessonProgress } from "../entities/lessonProgress.entity.js";
 import { UserImage } from "../entities/userImage.entity.js";
 import { AuthSession } from "../entities/authSession.entity.js";
+import { Assignment } from "../entities/assignment.entity.js";
+import { Submission } from "../entities/submission.entity.js";
 
 const AppDataSource = new DataSource({
   type: "postgres",
@@ -28,6 +30,8 @@ const AppDataSource = new DataSource({
     LessonProgress,
     UserImage,
     AuthSession,
+    Assignment,
+    Submission,
   ],
   synchronize: false,
   logging: false,

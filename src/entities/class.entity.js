@@ -28,5 +28,10 @@ export const Class = new EntitySchema({
       inverseSide: "class",
     },
     lessons: { type: "one-to-many", target: "Lesson", inverseSide: "class" },
+    assignments: {
+      type: "one-to-many",
+      target: "Assignment",
+      inverseSide: "class",
+    },
   },
 });

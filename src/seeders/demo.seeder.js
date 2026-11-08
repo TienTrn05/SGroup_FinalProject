@@ -4,6 +4,8 @@ import {
   ClassMemberFactory,
   LessonFactory,
   LessonProgressFactory,
+  AssignmentFactory,
+  SubmissionFactory,
 } from "../factories/index.js";
 import { hashPassword } from "../utils/passwordhelper.js";
 
@@ -30,6 +32,8 @@ export async function seedDemo(
       class_members: 0,
       lessons: 0,
       lesson_progress: 0,
+      assignments: 0,
+      submissions: 0,
       user_images: 0,
     };
     const factories = {
@@ -38,6 +42,8 @@ export async function seedDemo(
       class_members: new ClassMemberFactory(manager),
       lessons: new LessonFactory(manager),
       lesson_progress: new LessonProgressFactory(manager),
+      assignments: new AssignmentFactory(manager),
+      submissions: new SubmissionFactory(manager),
     };
 
     async function ensure(table, where, values = {}) {
@@ -86,6 +92,7 @@ export async function seedDemo(
           "Express routing",
           "TypeORM repositories",
         ],
+        assignmentTitle: "Build an Express REST API",
       },
       {
         name: "Demo - PostgreSQL Fundamentals",
@@ -95,6 +102,7 @@ export async function seedDemo(
           "Entity relationships",
           "Transactions",
         ],
+        assignmentTitle: "Design normalized PostgreSQL schema",
       },
     ];
 
@@ -135,6 +143,30 @@ export async function seedDemo(
           member_id: member.id,
         });
       }
+
+      const assignment = await ensure(
+        "assignments",
+        {
+          class_id: classroom.id,
+          title: course.assignmentTitle,
+        },
+        {
+          description: `Complete the project: ${course.assignmentTitle}.`,
+          maximum_score: "100.00",
+        },
+      );
+
+      await ensure(
+        "submissions",
+        {
+          assignment_id: assignment.id,
+          member_id: course.members[0].id,
+        },
+        {
+          content: `Completed ${course.assignmentTitle}.`,
+          repository_url: "https://github.com/example/demo-submission",
+        },
+      );
     }
 
     // No image row means the user has no image; image_url itself is NOT NULL.
